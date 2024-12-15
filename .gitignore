@@ -1,0 +1,31 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+collabora-frontend/node_modules
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# production
+/build
+
+# misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+bin/
+obj/
+Collabora-Backend/bin/
+Collabora-Backend/obj/
+
+C:\Users\keiru\Documents\Programs\appdev\collabora-app\Collabora-Backend\Services\collabora-backend-firebase-adminsdk-t576f-4d63f0b0d5.json
