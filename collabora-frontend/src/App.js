@@ -10,7 +10,7 @@ import Footer from "./components/Footer";
 import Home from "./pages/HomePage";
 import About from "./pages/LoginPage";
 import Register from "./pages/RegisterPage";
-import Chatroom from "./pages/ChatroomPage";
+import VideoCall from "./pages/VideoCall";
 import Match from "./pages/MatchPage";
 import Sessions from "./pages/SessionsPage";
 import Contact from "./pages/ContactPage";
@@ -31,7 +31,7 @@ const App = () => {
           <Route path="/login" element={<About />} />
           <Route path="/register" element={<Register />} />
           <Route path="/match" element={<Match />} />
-          <Route path="/chatroom" element={<Chatroom />} />
+          <Route path="/videocall" element={<VideoCall />} />
           <Route path="/sessions" element={<Sessions />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/findmatch" element={<FindMatch />} />

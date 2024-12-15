@@ -2,6 +2,9 @@ using Collabora_Backend.Models;
 using Collabora_Backend.Services.PasswordHashers;
 using Collabora_Backend.Services.TokenGenerators;
 using Collabora_Backend.Services;
+using Google.Apis.Auth.OAuth2;
+using Google.Cloud.Firestore.V1;
+using Google.Cloud.Firestore;
 
 namespace Collabora_Backend
 {
@@ -29,9 +32,36 @@ namespace Collabora_Backend
             AuthenticationConfiguration authenticationConfiguration = new AuthenticationConfiguration();
             configuration.Bind("Authentication", authenticationConfiguration);
 
+            builder.Services.AddSingleton(provider =>
+            {
+                // Path to the service account credentials file
+                string credentialsPath = Path.Combine(Directory.GetCurrentDirectory(), "Services", "collabora-backend-firebase-adminsdk-t576f-4d63f0b0d5.json");
+
+                // Ensure the file exists
+                if (!File.Exists(credentialsPath))
+                {
+                    throw new FileNotFoundException($"The credentials file was not found at: {credentialsPath}");
+                }
+
+                // Load the credentials from the service account key file
+                GoogleCredential credential = GoogleCredential.FromFile(credentialsPath);
+
+                // Configure Firestore client with the credentials
+                FirestoreClient firestoreClient = new FirestoreClientBuilder
+                {
+                    CredentialsPath = credentialsPath
+                }.Build();
+
+                // Create FirestoreDb using the client
+                FirestoreDb firestoreDb = FirestoreDb.Create("studyapp-34d4e", firestoreClient);
+
+                return firestoreDb;
+            });
+
 
             // Register FirebaseService
             builder.Services.AddSingleton<FirebaseService>();
+            builder.Services.AddSingleton<FirestoreService>();
 
             // Swagger configuration
             builder.Services.AddEndpointsApiExplorer();

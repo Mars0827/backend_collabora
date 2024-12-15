@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { db } from "../firebase"; // Ensure the path is correct
 import { collection, addDoc } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
 
 const MatchPage = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     topics: {
       academic: false,
@@ -44,6 +46,7 @@ const MatchPage = () => {
     try {
       await addDoc(collection(db, "matches"), formData);
       alert("Data saved successfully!");
+      navigate("/")
     } catch (error) {
       console.error("Error saving data:", error);
       alert("Failed to save data.");
