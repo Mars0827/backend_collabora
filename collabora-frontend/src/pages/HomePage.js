@@ -41,7 +41,7 @@ const HomePage = () => {
             </p>
           </div>
           <div className="bg-blueButton px-5 py-2 rounded-sm border border-blueButtonBorder max-w-36 text-center text-sm">
-            <Link to="/chatroom">Start studying</Link>
+            <Link to="/findmatch">Start studying</Link>
           </div>
         </div>
       </div>

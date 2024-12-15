@@ -14,6 +14,7 @@ import Chatroom from "./pages/ChatroomPage";
 import Match from "./pages/MatchPage";
 import Sessions from "./pages/SessionsPage";
 import Contact from "./pages/ContactPage";
+import FindMatch from "./pages/FindMatchPage";
 
 const App = () => {
   const location = useLocation(); // Get the current route
@@ -33,6 +34,8 @@ const App = () => {
           <Route path="/chatroom" element={<Chatroom />} />
           <Route path="/sessions" element={<Sessions />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/findmatch" element={<FindMatch />} />
+          
         </Routes>
       </main>
       {!shouldHideFooter && <Footer />} {/* Conditionally render the footer */}
