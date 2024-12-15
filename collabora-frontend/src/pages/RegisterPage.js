@@ -24,7 +24,7 @@ const RegisterPage = () => {
     try {
       // Send the registration data to the backend
       const response = await axios.post(
-        "https://localhost:7148/api/Authentication/register",
+        "https://localhost:7148/register",
         {
           email: email,
           username: username,

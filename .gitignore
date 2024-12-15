@@ -12,6 +12,8 @@ collabora-frontend/node_modules
 # production
 /build
 
+.vs
+
 # misc
 .DS_Store
 .env.local

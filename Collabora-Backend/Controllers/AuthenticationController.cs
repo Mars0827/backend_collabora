@@ -17,10 +17,17 @@ namespace Collabora_Backend.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest registerRequest)
         {
+            if (registerRequest.Password != registerRequest.ConfirmPassword)
+            {
+                return BadRequest(new { ErrorMessage = "Passwords do not match." });
+            }
+
             // Call FirebaseService to register a new user
             var firebaseUser = await _firebaseService.CreateUserAsync(registerRequest.Email, registerRequest.Password);
+
             return Ok(new { Message = "User created", FirebaseUser = firebaseUser });
         }
+
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest loginRequest)

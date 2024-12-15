@@ -1,38 +1,43 @@
 import React, { useState } from "react";
+import { auth, signInWithEmailAndPassword } from "../firebase"; // Make sure this path is correct
 import axios from "axios";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  // Handle form submission
   const handleSubmit = async (e) => {
-    e.preventDefault(); // Prevent default form behavior
-
-    // Clear any previous errors
+    e.preventDefault();
     setError("");
+    setLoading(true);
 
     try {
-      // Send the login data to the backend
-      const response = await axios.post("https://your-api-url/login", {
-        username: email, // or use email if the backend expects email
-        password: password,
-      });
+      // Attempt Firebase sign-in
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      const idToken = await userCredential.user.getIdToken(); // Get ID token
 
-      // If login is successful, store the token in localStorage
-      const { accessToken } = response.data;
-      localStorage.setItem("token", accessToken); // Store the token
+      // Send the ID token to your backend for verification
+      const response = await axios.post(
+        "https://localhost:7148/login", // Adjust this URL if necessary
+        { idToken },
+        { headers: { "Content-Type": "application/json" } }
+      );
 
-      // Optionally redirect the user after successful login
-      window.location.href = "/dashboard"; // Replace with your dashboard route
-    } catch (err) {
-      // If an error occurs, display the error message
-      if (err.response && err.response.data) {
-        setError(err.response.data.errorMessage || "Login failed");
-      } else {
-        setError("An error occurred. Please try again.");
+      if (response.status === 200) {
+        // Successful login, redirect to the dashboard (or home page)
+        window.location.href = "/"; // Redirect as needed
       }
+    } catch (err) {
+      console.error(err);
+      setError("Invalid credentials or an error occurred");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -79,9 +84,10 @@ const LoginPage = () => {
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 px-4 rounded-sm"
+            className={`w-full bg-blue-600 hover:bg-blue-500 text-white py-2 px-4 rounded-sm ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+            disabled={loading}
           >
-            Log in
+            {loading ? "Logging in..." : "Log in"}
           </button>
         </form>
 
