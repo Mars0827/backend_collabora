@@ -75,11 +75,7 @@ const ChatroomPage = () => {
       <div className="flex h-full">
         {/* Video Call Section */}
         <div className="w-1/4 h-full flex flex-col justify-end">
-          <h2 className="text-white text-center py-4">Video Call</h2>
           <VideoCall />
-          <div className="bg-gray-800 flex-grow rounded-md">
-            {/* Assuming VideoCall is already implemented */}
-          </div>
         </div>
 
         {/* Chat Section */}
@@ -143,7 +139,7 @@ const ChatroomPage = () => {
 
         {/* Placeholder for Future Features */}
         <div className="w-1/4 h-full flex flex-col justify-center items-center">
-          <h2 className="text-white">Other Features</h2>
+          <h2 className="text-white"></h2>
         </div>
       </div>
     </div>

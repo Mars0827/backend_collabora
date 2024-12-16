@@ -190,9 +190,12 @@ const VideoCall = () => {
   const [isVideoOn, setIsVideoOn] = useState(true);
   const [isMicOn, setIsMicOn] = useState(true);
   const [isHeadphoneOn, setIsHeadphoneOn] = useState(true);
+  const [hideButtons, setHideButtons] = useState(false);
 
   return (
     <div>
+      {!hideButtons && (
+        <div>
       <div>
         <label htmlFor="cameraSelector">Select Camera:</label>
         <select
@@ -208,21 +211,33 @@ const VideoCall = () => {
           ))}
         </select>
       </div>
-      <button onClick={() => setupSources("create")}>Create Call</button>
-      <input
-        value={callId}
-        onChange={(e) => setCallId(e.target.value)}
-        placeholder="Enter Call ID"
-        className="text-black"
-      />
-      <button onClick={() => setupSources("join")}>Join Call</button>
-      <Link to="/">
-        <button
-          onClick={hangUp}
-          disabled={!webcamActive}
-          className="hangup button"
-        >Hang up</button>
-      </Link>
+        <div>
+          <button onClick={() => setupSources("create")}>Create Call</button>
+          <input
+            value={callId}
+            onChange={(e) => setCallId(e.target.value)}
+            placeholder="Enter Call ID"
+            className="text-black"
+          />
+          <button onClick={() => setupSources("join")}>Join Call</button>
+          <Link to="/">
+            <button
+              onClick={hangUp}
+              disabled={!webcamActive}
+              className="hangup button"
+            >
+              Hang up
+            </button>
+          </Link>
+        </div>
+        </div>
+      )}
+      <button
+        onClick={() => setHideButtons((prev) => !prev)}
+        className="toggle-hide-button"
+      >
+        {hideButtons ? "." : "."}
+      </button>
 
       <div>
         <div>
