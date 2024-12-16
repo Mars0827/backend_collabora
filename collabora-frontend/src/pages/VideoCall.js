@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { db } from '../firebase'; // Adjust the path if firebase.js is in a different folder
+import React, { useState, useEffect, useRef } from "react";
+import "firebase/firestore";
+import { db } from "../firebase";
 import {
   collection,
   doc,
@@ -8,171 +9,330 @@ import {
   onSnapshot,
   addDoc,
   getDoc,
-} from 'firebase/firestore';
+  deleteDoc,
+  getDocs,
+} from "firebase/firestore";
+import PropTypes from "prop-types";
+import MicOn from "../assets/ion_mic-on.svg";
+import MicOff from "../assets/ion_mic-off.svg";
+import HeadphoneOn from "../assets/mingcute_headphone-on.svg";
+import HeadphoneOff from "../assets/mingcute_headphone-off.svg";
+import VideoOn from "../assets/mynaui_video-on.svg";
+import VideoOff from "../assets/mynaui_video-off.svg";
+import { Link } from "react-router-dom";
+
+const servers = {
+  iceServers: [
+    {
+      urls: ["stun:stun1.l.google.com:19302", "stun:stun2.l.google.com:19302"],
+    },
+  ],
+  iceCandidatePoolSize: 10,
+};
+const pc = new RTCPeerConnection(servers);
 
 const VideoCall = () => {
-  const pc = new RTCPeerConnection({
-    iceServers: [
-      {
-        urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'],
-      },
-    ],
-    iceCandidatePoolSize: 10,
-  });
+  const [webcamActive, setWebcamActive] = useState(false);
+  const [roomId, setRoomId] = useState("");
+  const [callId, setCallId] = useState("");
+  const [cameras, setCameras] = useState([]);
+  const [selectedCamera, setSelectedCamera] = useState("");
+  const localRef = useRef(null);
+  const remoteRef = useRef(null);
 
-  // eslint-disable-next-line no-unused-vars
-  const [localStream, setLocalStream] = useState(null);
-  // eslint-disable-next-line no-unused-vars
-  const [remoteStream, setRemoteStream] = useState(new MediaStream());
-  // eslint-disable-next-line no-unused-vars
-  const [callId, setCallId] = useState('');
-  // eslint-disable-next-line no-unused-vars
-  const [cameraDevices, setCameraDevices] = useState([]);
-  // eslint-disable-next-line no-unused-vars
-  const [selectedCamera, setSelectedCamera] = useState('');
-
-  const webcamVideoRef = useRef(null);
-  const remoteVideoRef = useRef(null);
-
+  // Fetch available cameras
   useEffect(() => {
-    const fetchCameraDevices = async () => {
+    const getCameras = async () => {
       const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoDevices = devices.filter((device) => device.kind === 'videoinput');
-      setCameraDevices(videoDevices);
+      const videoDevices = devices.filter(
+        (device) => device.kind === "videoinput"
+      );
+      setCameras(videoDevices);
       if (videoDevices.length > 0) {
-        setSelectedCamera(videoDevices[0].deviceId);
+        setSelectedCamera(videoDevices[0].deviceId); // Set the first camera as default
       }
     };
-
-    fetchCameraDevices();
+    getCameras();
   }, []);
-  // eslint-disable-next-line no-unused-vars
-  const startWebcam = async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { deviceId: selectedCamera ? { exact: selectedCamera } : undefined },
+
+  const setupSources = async (mode) => {
+    const localStream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        deviceId: selectedCamera ? { exact: selectedCamera } : undefined,
+      },
       audio: true,
     });
-    setLocalStream(stream);
-    stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+    const remoteStream = new MediaStream();
+
+    localStream.getTracks().forEach((track) => {
+      pc.addTrack(track, localStream);
+    });
 
     pc.ontrack = (event) => {
-      event.streams[0].getTracks().forEach((track) => remoteStream.addTrack(track));
+      event.streams[0].getTracks().forEach((track) => {
+        remoteStream.addTrack(track);
+      });
     };
 
-    if (webcamVideoRef.current) webcamVideoRef.current.srcObject = stream;
-    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
-  };
-  // eslint-disable-next-line no-unused-vars
-  const createCall = async () => {
-    const callDocRef = doc(collection(db, 'calls'));
-    const offerCandidates = collection(callDocRef, 'offerCandidates');
-    const answerCandidates = collection(callDocRef, 'answerCandidates');
+    localRef.current.srcObject = localStream;
+    remoteRef.current.srcObject = remoteStream;
 
-    setCallId(callDocRef.id);
+    setWebcamActive(true);
 
-    pc.onicecandidate = (event) => {
-      event.candidate && addDoc(offerCandidates, event.candidate.toJSON());
-    };
+    if (mode === "create") {
+      const callDoc = doc(collection(db, "calls"));
+      const offerCandidates = collection(callDoc, "offerCandidates");
+      const answerCandidates = collection(callDoc, "answerCandidates");
 
-    const offerDescription = await pc.createOffer();
-    await pc.setLocalDescription(offerDescription);
+      setRoomId(callDoc.id);
+      setCallId(callDoc.id);
 
-    const offer = {
-      sdp: offerDescription.sdp,
-      type: offerDescription.type,
-    };
+      pc.onicecandidate = (event) => {
+        event.candidate && addDoc(offerCandidates, event.candidate.toJSON());
+      };
 
-    await setDoc(callDocRef, { offer });
+      const offerDescription = await pc.createOffer();
+      await pc.setLocalDescription(offerDescription);
 
-    onSnapshot(callDocRef, (snapshot) => {
-      const data = snapshot.data();
-      if (!pc.currentRemoteDescription && data?.answer) {
-        const answerDescription = new RTCSessionDescription(data.answer);
-        pc.setRemoteDescription(answerDescription);
+      const offer = {
+        sdp: offerDescription.sdp,
+        type: offerDescription.type,
+      };
+
+      await setDoc(callDoc, { offer });
+
+      onSnapshot(callDoc, (snapshot) => {
+        const data = snapshot.data();
+        if (!pc.currentRemoteDescription && data?.answer) {
+          const answerDescription = new RTCSessionDescription(data.answer);
+          pc.setRemoteDescription(answerDescription);
+        }
+      });
+
+      onSnapshot(answerCandidates, (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === "added") {
+            const candidate = new RTCIceCandidate(change.doc.data());
+            pc.addIceCandidate(candidate);
+          }
+        });
+      });
+    } else if (mode === "join") {
+      const callDoc = doc(db, "calls", callId);
+      const offerCandidates = collection(callDoc, "offerCandidates");
+      const answerCandidates = collection(callDoc, "answerCandidates");
+
+      pc.onicecandidate = (event) => {
+        event.candidate && addDoc(answerCandidates, event.candidate.toJSON());
+      };
+
+      const callData = (await getDoc(callDoc)).data();
+
+      const offerDescription = callData.offer;
+      await pc.setRemoteDescription(
+        new RTCSessionDescription(offerDescription)
+      );
+
+      const answerDescription = await pc.createAnswer();
+      await pc.setLocalDescription(answerDescription);
+
+      const answer = {
+        type: answerDescription.type,
+        sdp: answerDescription.sdp,
+      };
+
+      await updateDoc(callDoc, { answer });
+
+      onSnapshot(offerCandidates, (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === "added") {
+            const candidate = new RTCIceCandidate(change.doc.data());
+            pc.addIceCandidate(candidate);
+          }
+        });
+      });
+    }
+
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === "disconnected") {
+        hangUp();
       }
-    });
-
-    onSnapshot(answerCandidates, (snapshot) => {
-      snapshot.docChanges().forEach((change) => {
-        if (change.type === 'added') {
-          const candidate = new RTCIceCandidate(change.doc.data());
-          pc.addIceCandidate(candidate);
-        }
-      });
-    });
-  };
-  // eslint-disable-next-line no-unused-vars
-  const answerCall = async () => {
-    const callDocRef = doc(db, 'calls', callId);
-    const answerCandidates = collection(callDocRef, 'answerCandidates');
-    const offerCandidates = collection(callDocRef, 'offerCandidates');
-
-    pc.onicecandidate = (event) => {
-      event.candidate && addDoc(answerCandidates, event.candidate.toJSON());
     };
-
-    const callData = (await getDoc(callDocRef)).data();
-    const offerDescription = callData.offer;
-
-    await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
-    const answerDescription = await pc.createAnswer();
-    await pc.setLocalDescription(answerDescription);
-
-    const answer = {
-      type: answerDescription.type,
-      sdp: answerDescription.sdp,
-    };
-
-    await updateDoc(callDocRef, { answer });
-
-    onSnapshot(offerCandidates, (snapshot) => {
-      snapshot.docChanges().forEach((change) => {
-        if (change.type === 'added') {
-          const candidate = new RTCIceCandidate(change.doc.data());
-          pc.addIceCandidate(candidate);
-        }
-      });
-    });
   };
+
+  const hangUp = async () => {
+    pc.close();
+
+    if (roomId) {
+      const roomRef = doc(db, "calls", callId);
+      const answerCandidatesRef = collection(roomRef, "answerCandidates");
+      const offerCandidatesRef = collection(roomRef, "offerCandidates");
+
+      // Delete all answer candidates
+      const answerCandidatesSnapshot = await getDocs(answerCandidatesRef);
+      answerCandidatesSnapshot.forEach(async (doc) => {
+        await deleteDoc(doc.ref);
+      });
+
+      // Delete all offer candidates
+      const offerCandidatesSnapshot = await getDocs(offerCandidatesRef);
+      offerCandidatesSnapshot.forEach(async (doc) => {
+        await deleteDoc(doc.ref);
+      });
+
+      // Delete the room document
+      await deleteDoc(roomRef);
+    }
+
+    window.location.reload();
+  };
+
+  const [isVideoOn, setIsVideoOn] = useState(true);
+  const [isMicOn, setIsMicOn] = useState(true);
+  const [isHeadphoneOn, setIsHeadphoneOn] = useState(true);
 
   return (
-    <div style={{ fontFamily: 'Arial, sans-serif', lineHeight: '1.6', margin: '20px', backgroundColor: '#f9f9f9', color: '#333' }}>
-       <h2 style={{ color: '#007BFF' }}>Study With Me</h2>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '20px', marginBottom: '20px' }}>
-        <div style={{ flex: 1, textAlign: 'center' }}>
-          <h3 style={{ marginBottom: '10px' }}>Local Stream</h3>
-          <video ref={webcamVideoRef} autoPlay playsInline style={{ width: '100%', maxWidth: '1000px', height: '700px', backgroundColor: '#000', border: '2px solid #007BFF' }}></video>
-        </div>
-        <div style={{ flex: 1, textAlign: 'center' }}>
-          <h3 style={{ marginBottom: '10px' }}>Remote Stream</h3>
-          <video ref={remoteVideoRef} autoPlay playsInline style={{ width: '100%', maxWidth: '1000px', height: '700px', backgroundColor: '#000', border: '2px solid #28A745' }}></video>
-        </div>
+    <div>
+      <div>
+        <label htmlFor="cameraSelector">Select Camera:</label>
+        <select
+          id="cameraSelector"
+          value={selectedCamera}
+          onChange={(e) => setSelectedCamera(e.target.value)}
+          className="text-black"
+        >
+          {cameras.map((camera) => (
+            <option key={camera.deviceId} value={camera.deviceId}>
+              {camera.label || `Camera ${camera.deviceId}`}
+            </option>
+          ))}
+        </select>
       </div>
-      <button onClick={startWebcam} style={{ padding: '10px 20px', backgroundColor: '#007BFF', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: '20px' }}>Start Webcam</button>
-      <label htmlFor="cameraSelect">Choose Camera:</label>
-      <select id="cameraSelect" onChange={(e) => setSelectedCamera(e.target.value)}>
-        {cameraDevices.map((device, index) => (
-          <option key={device.deviceId} value={device.deviceId}>
-            {device.label || `Camera ${index + 1}`}
-          </option>
-        ))}
-      </select>
-      <h2 style={{ color: '#007BFF' }}>Manually create a call first</h2>
-      <button onClick={createCall} style={{ padding: '10px 20px', backgroundColor: '#28A745', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: '20px' }}>Create Call (offer)</button>
-
-      <h2 style={{ color: '#007BFF' }}>Join a call</h2>
-      <p style={{ marginBottom: '10px' }}>Answer the call from a different browser window or device</p>
+      <button onClick={() => setupSources("create")}>Create Call</button>
       <input
         value={callId}
         onChange={(e) => setCallId(e.target.value)}
-        style={{ padding: '10px', width: 'calc(100% - 24px)', maxWidth: '300px', border: '1px solid #ccc', borderRadius: '4px', marginRight: '10px' }}
+        placeholder="Enter Call ID"
+        className="text-black"
       />
-      <button onClick={answerCall} style={{ padding: '10px 20px', backgroundColor: '#FFC107', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Answer</button>
+      <button onClick={() => setupSources("join")}>Join Call</button>
+      <Link to="/">
+        <button
+          onClick={hangUp}
+          disabled={!webcamActive}
+          className="hangup button"
+        >Hang up</button>
+      </Link>
 
-      <h2 style={{ color: '#007BFF' }}>Hangup</h2>
-      <button style={{ padding: '10px 20px', backgroundColor: '#DC3545', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Hangup</button>
+      <div>
+        <div>
+          <div className="w-full h-full p-4 px-6">
+            <div className="bg-slate-400 h-60 mb-2 w-[335px]">
+              <video ref={remoteRef} autoPlay playsInline></video>
+            </div>
+          </div>
+        </div>
+        <div className="p-3 px-6 flex justify-between border border-x-0 border-y-grayBorder">
+          <div className="flex space-x-4">
+            <div className="flex flex-col justify-center">
+              <p className="font-medium text-sm px-2">Elydhore</p>
+            </div>
+          </div>
+          <div className="flex space-x-4 items-center">
+            {/* Microphone Toggle */}
+            <button
+              onClick={() => setIsMicOn((prev) => !prev)}
+              className={"opacity-50 cursor-not-allowed"}
+            >
+              <img
+                src={isMicOn ? MicOn : MicOff}
+                alt={isMicOn ? "Microphone On" : "Microphone Off"}
+                className="h-5 w-5"
+              />
+            </button>
+            {/* Headphone Toggle */}
+            <button
+              onClick={() => setIsHeadphoneOn((prev) => !prev)}
+              className={"opacity-50 cursor-not-allowed"}
+            >
+              <img
+                src={isHeadphoneOn ? HeadphoneOn : HeadphoneOff}
+                alt={isHeadphoneOn ? "Headphone On" : "Headphone Off"}
+                className="h-5 w-5"
+              />
+            </button>
+            {/* Video Toggle */}
+            <button
+              onClick={() => setIsVideoOn((prev) => !prev)}
+              className={"opacity-50 cursor-not-allowed"}
+            >
+              <img
+                src={isVideoOn ? VideoOn : VideoOff}
+                alt={isVideoOn ? "Video On" : "Video Off"}
+                className="h-5 w-5"
+              />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div>
+          <div className="w-full h-full p-4 px-6">
+            <div className="bg-slate-400 h-60 mb-2 w-[335px]">
+              <video ref={localRef} autoPlay playsInline></video>
+            </div>
+          </div>
+        </div>
+        <div className="p-3 px-6 flex justify-between border border-x-0 border-y-grayBorder">
+          <div className="flex space-x-4">
+            <div className="flex flex-col justify-center">
+              <p className="font-medium text-sm px-2">Keiru</p>
+            </div>
+          </div>
+          <div className="flex space-x-4 items-center">
+            {/* Microphone Toggle */}
+            <button
+              onClick={() => setIsMicOn((prev) => !prev)}
+              className={"opacity-50 cursor-not-allowed"}
+            >
+              <img
+                src={isMicOn ? MicOn : MicOff}
+                alt={isMicOn ? "Microphone On" : "Microphone Off"}
+                className="h-5 w-5"
+              />
+            </button>
+            {/* Headphone Toggle */}
+            <button
+              onClick={() => setIsHeadphoneOn((prev) => !prev)}
+              className={"opacity-50 cursor-not-allowed"}
+            >
+              <img
+                src={isHeadphoneOn ? HeadphoneOn : HeadphoneOff}
+                alt={isHeadphoneOn ? "Headphone On" : "Headphone Off"}
+                className="h-5 w-5"
+              />
+            </button>
+            {/* Video Toggle */}
+            <button
+              onClick={() => setIsVideoOn((prev) => !prev)}
+              className={"opacity-50 cursor-not-allowed"}
+            >
+              <img
+                src={isVideoOn ? VideoOn : VideoOff}
+                alt={isVideoOn ? "Video On" : "Video Off"}
+                className="h-5 w-5"
+              />
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
+};
+
+VideoCall.propTypes = {
+  name: PropTypes.string,
 };
 
 export default VideoCall;
